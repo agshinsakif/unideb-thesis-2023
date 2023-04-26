@@ -1,3 +1,5 @@
+/molbio/projects/chipvar/agshin/scripts/find-max_min-imb.sh
+
 # Find the largest and smallest values in the cells
 
 max_value=""
