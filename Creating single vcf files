@@ -1,0 +1,31 @@
+/molbio/projects/chipvar/agshin/scripts/mpileup-bam_to_vcf-single.sh
+
+#!/bin/sh
+# input: list of the hs CTCF ChIP-seq bams (-S)
+# restricted to the ChIPSummitDB CTCF consensus motif regions (-R)
+# filtered to contain only the heterozygous sites (-i GT="het")
+# output to a vcf file (-Ov -o) for each experiment
+
+
+basedir='/molbio/projects/chipvar/agshin'
+
+cd $basedir
+
+echo "Running bcftools mpileup pipeline at `date`"
+
+for i in `cat lists/hs_CTCF-bams.lst` ; do
+	name=`basename $i .bam`
+
+	bcftools mpileup -a FORMAT/AD -R consensus_motifs/hs_CTCF_consensus_motifset.bed -f /molbio/flatfiles/genomes/index/hg19.fa -Ou --threads 40 $i | 
+		bcftools call -mv -Ov | 
+		bcftools filter -i 'GT="het"' -Ov |h
+		bcftools sort -m 20G -Ov -o vcf/single/${name}.vcf
+		bgzip  -@ 10 vcf/single/${name}.vcf 
+		tabix -0 -fp vcf -h vcf/single/${name}.vcf.gz > vcf/single/${name}.vcf.gz.tbi
+	echo "$name Finished at `date`"
+
+done
+
+echo "Finished at `date`"
+
+exit
