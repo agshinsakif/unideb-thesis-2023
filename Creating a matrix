@@ -1,0 +1,42 @@
+/molbio/projects/chipvar/agshin/scripts/bigtable_to_matrix.sh
+
+#!/bin/sh
+# creating a matrix based a big table that we have
+# row: experiments
+# column: chr:start-end_pos_consensus
+# cells: Ref/Alt: RefDP/AltDP
+# delimiter=;
+
+
+basedir='/molbio/projects/chipvar/agshin/table_het'
+
+cd $basedir
+
+sort -k1,1V -k3n bigtable_het.txt > table.txt
+
+awk '{
+    row=$NF;
+    col=$1":"$3"-"$4"_"$5"_"$6;
+    vals[row,col]=$7"/"$8":"$9"/"$10
+}
+!seenRow[row]++ {rows[++numRows]=row}
+!seenCol[col]++ {cols[++numCols]=col}
+END {
+    OFS=";";
+    printf ";";
+    for (colNr=1; colNr<=numCols; colNr++) {
+        col=cols[colNr];
+        printf "%s%s",col,(colNr<numCols ? OFS : ORS)
+    }
+    for (rowNr=1; rowNr<=numRows; rowNr++) {
+        row=rows[rowNr];
+        printf "%s%s",row,OFS;
+        for (colNr=1; colNr<=numCols; colNr++) {
+            col=cols[colNr];
+            val=vals[row,col];
+            printf "%s%s",val,(colNr<numCols ? OFS : ORS)
+        }
+    }
+}' table.txt > matrix_ctcf_het.txt
+
+rm table.txt
