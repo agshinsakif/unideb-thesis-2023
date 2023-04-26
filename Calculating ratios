@@ -1,0 +1,21 @@
+```
+/molbio/projects/chipvar/agshin/table_het$
+
+awk '{print $5}' bigtable_het.txt | sort -n | uniq -c | awk '{OFS="\t" ; print $2,$1}'
+```
+
+```
+/molbio/projects/chipvar/agshin/table_het$
+
+sort -k5,5 -k7,7 -k8,8 bigtable_het.txt | awk '{print $5,$7,$8,$12,$9,$10,$11}' > bigtable_het-sorted_by_pos.txt
+```
+
+```
+/molbio/projects/chipvar/agshin/table_het$
+
+for i in {1..12} ; do for j in A C G T ; do  for k in A C G T ; do awk -v pos="$i" -v ref="$j" -v alt="$k" '{ if ($5 == pos && $7 == ref && $8 == alt ) {sum+=$11 ; ++count} } END {if (count>=10 ) print pos"\t"ref"\t"alt"\t" sum/count "\t" count }' bigtable_het.txt ; done ; done ; done | sort -k1,1n -k2,2 -k3,3 > bigtable_het-mean-sorted.txt
+```
+
+```
+for i in {1..12} ; do for j in A C G T ; do  for k in A C G T ; do awk -v pos="$i" -v ref="$j" -v alt="$k" '{ if ($5 == pos && $7 == ref && $8 == alt ) {sum+=$11 ; ++count; a[count]=$11 } } END {if (count>=10 ) { asort(a); median=a[int(count/2)+1]; print pos"\t"ref"\t"alt"\t" median "\t" count } }' bigtable_het.txt ; done ; done ; done | sort -k 4 > bigtable_het-median-sorted.txt
+```
