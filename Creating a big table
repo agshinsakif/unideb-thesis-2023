@@ -1,0 +1,93 @@
+/molbio/projects/chipvar/agshin/scripts/vcf_to_bigtable.sh
+
+#!/bin/sh
+# input: list of the single vcfs and CTCF consensus motifs (forward and reverse) bed files
+# output: bigtable that contains all heterozygote variants in CTCF binfing sites
+
+
+basedir='/molbio/projects/chipvar/agshin/table_het'
+
+cd $basedir
+
+mkdir -p single_forward
+mkdir -p single_reverse
+
+
+
+# variants in forward strand
+for vcf in `cat ../lists/vcf_het.lst` ; do
+	name=`basename $vcf .vcf.gz`;
+    bcftools view --types snps $vcf | intersectBed -a stdin -b ../consensus_motifs/forward_motifs.bed -wb |
+awk '$5 ~ /^[[:alpha:]]$/' |
+awk '{OFS="\t"; print $1,$2,$4,$5,$8,$10,$12, $13, $16}' |
+sed "s/;/\t/g" |
+awk '{OFS="\t"; print $1,$2,$3,$4,$5,$2-$(NF-2),$(NF-3), $(NF-2),$(NF-1), $NF}' |
+sed "s/:/\t/g" |
+sed "s/,/\t/g" |
+sed "s/=/\t/g" |
+awk '{OFS="\t"; $17=($7==1||$7==2||$7==4||$7==12)?"C":($7==3||$7==6)?"A":($7==5)?"Y":"G"; print $0}' |
+awk '{OFS="\t"; print $1, $2, $14, $15, $7, $17, $3, $4, $12,$13, $6, $16}' |
+awk ' { if (($9+$10)/$11>0.95) print $0 }' |
+awk ' { if ($9+$10>=10) print $0 }' |
+awk '{ OFS="\t" ; print $0, "'$name'" }' > single_forward/filtered_$name.txt; done
+
+for i in $(ls single_forward/*.txt); do
+        cat $i;
+        done > table_forward.txt
+
+
+# variants in reverse strand
+for vcf in `cat ../lists/vcf_het.lst` ; do
+        name=`basename $vcf .vcf.gz`;
+    bcftools view --types snps $vcf | intersectBed -a stdin -b ../consensus_motifs/reverse_motifs.bed -wb |
+awk '$5 ~ /^[[:alpha:]]$/' |
+awk '{OFS="\t"; print $1,$2,$4,$5,$8,$10,$12, $13, $16}' |
+sed "s/;/\t/g" |
+awk '{OFS="\t"; print $1,$2,$3,$4,$5,13-($2-$(NF-2)),$(NF-3), $(NF-2),$(NF-1), $NF}' |
+sed "s/:/\t/g" |
+sed "s/,/\t/g" |
+sed "s/=/\t/g" |
+awk '{OFS="\t"; $17=($7==1||$7==2||$7==4||$7==12)?"C":($7==3||$7==6)?"A":($7==5)?"Y":"G"; print $0}' |
+awk '{OFS="\t"; print $1, $2, $14, $15, $7, $17, $3, $4, $12,$13, $6, $16}' |
+awk ' { if (($9+$10)/$11>0.95) print $0 }' |
+awk ' { if ($9+$10>=10) print $0 }' |
+awk '{ OFS="\t" ; print $0, "'$name'" }' > single_reverse/filtered_$name.txt; done
+
+
+for i in $(ls single_reverse/*.txt); do
+	cat $i;
+	done > table_temp_reverse.txt
+
+# adding complimentary bases
+source ../lists/dict.sh
+
+paste <(
+  awk '{OFS="\t";print $1,$2,$3,$4,$5,$6}' table_temp_reverse.txt
+) <(
+  inp=$(for i in $(awk '{print $7}' table_temp_reverse.txt); do
+    [[ ${dic[$i]+_} ]] && printf "%s\n" "${dic[$i]}"
+  done) && for i in $inp; do
+    [[ ${dic[$i]+_} ]] && printf "%s\n" "${dic[$i]}"
+  done
+) <(
+  inp=$(for i in $(awk '{print $8}' table_temp_reverse.txt); do
+    [[ ${dic[$i]+_} ]] && printf "%s\n" "${dic[$i]}"
+  done) && for i in $inp; do
+    [[ ${dic[$i]+_} ]] && printf "%s\n" "${dic[$i]}"
+  done
+) <(
+  awk '{OFS="\t";print $9,$10,$11,$12,$13}' table_temp_reverse.txt
+) > table_reverse.txt
+
+
+# merging forward and reverse strand tables
+cat table_forward.txt table_reverse.txt | awk '{ for (i=1; i<=10; i++) printf "%s\t", $i; printf "%s\t%s\t%s\t%s\n", $9/$10, $11, $12, $13 }' | sort -k5,5n > bigtable_het.txt
+
+
+# deleting temp directories and files
+rm -r single_forward
+rm -r single_reverse
+
+rm table_forward.txt
+rm table_temp_reverse.txt
+rm table_reverse.txt
