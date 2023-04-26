@@ -1,0 +1,21 @@
+/molbio/projects/chipvar/agshin/scripts/only-txt_and_bed.sh
+
+
+#!/bin/bash
+
+basedir='/molbio/projects/chipvar/agshin/table_het'
+cd "$basedir" 
+mkdir -p only/opposites
+
+table=bigtable_het-sequences.txt
+list_opp=../lists/only-opposites.lst
+list_all=bigtable_het-mean-sorted.txt
+
+
+awk 'NR==FNR{a[$1,$2,$3]; next} ($5,$7,$8) in a { OFS="\t"; print $0 > ("only/only_" $5 $7 $8  "-het.txt")}' $list_all $table
+
+
+
+awk 'NR==FNR{a[$1,$2,$3]; next} ($5,$7,$8) in a { OFS="\t"; print $0 > ("only/opposites/only_" $5 $7 $8 "-het.txt")}' $list_opp $table
+
+awk 'NR==FNR{a[$1,$2,$3]; next} ($5,$7,$8) in a { OFS="\t"; print $1, $3, $4, $5"_"$7"_"$8, $13, $14 > ("only/opposites/only_" $5 $7 $8 "-het.bed")}' $list_opp $table
